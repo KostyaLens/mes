@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.security.KeyPair;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
 
 @Setter
 @Getter

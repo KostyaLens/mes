@@ -11,7 +11,7 @@ import java.util.Base64;
 @Service
 public class EncryptionService {
 
-    // Шифр перестановки (Цезарь)
+
     public String encryptCaesar(String message, int shift) {
         StringBuilder encrypted = new StringBuilder();
         for (char c : message.toCharArray()) {
@@ -29,7 +29,7 @@ public class EncryptionService {
         return encryptCaesar(encryptedMessage, 26 - shift);
     }
 
-    // AES шифрование
+
     public String encryptAES(String message, SecretKey secretKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
@@ -44,11 +44,12 @@ public class EncryptionService {
         return new String(decrypted);
     }
 
-    // RSA шифрование
+
     public String encryptRSA(String message, PublicKey publicKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.ENCRYPT_MODE, publicKey);
         byte[] encrypted = cipher.doFinal(message.getBytes());
+        System.out.println(Base64.getEncoder().encodeToString(encrypted));
         return Base64.getEncoder().encodeToString(encrypted);
     }
 
