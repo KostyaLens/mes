@@ -69,7 +69,6 @@ public class MessageController {
     public String encryptAndSend(@RequestBody EncryptedMessage message) throws Exception {
         EncryptedMessage encryptedMessage = new EncryptedMessage();
         encryptedMessage.setMessage(encrypt(message));
-
         encryptedMessage.setMethod(message.getMethod());
         sendClien.acceptMessange(encryptedMessage);
         return "Сообщение отправлено, в зашифрованном виде оно такое: " + encryptedMessage.getMessage();
@@ -115,7 +114,6 @@ public class MessageController {
                 Random random = new Random();
                 int randomNumber = random.nextInt(100);
                 caesarKey = Integer.toString(randomNumber);
-                System.out.println(this.caesarKey);
                 return "caesar ключ сгенерирован";
             default:
                 throw new IllegalArgumentException("Invalid method");
