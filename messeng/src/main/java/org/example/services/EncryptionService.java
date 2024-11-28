@@ -6,6 +6,8 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
 
@@ -31,35 +33,36 @@ public class EncryptionService {
     }
 
 
-    public String encryptAES(String message, SecretKey secretKey) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-        byte[] encrypted = cipher.doFinal(message.getBytes());
+    public String aesEncrypt(String message, byte[] key) {
+        byte[] encrypted = new byte[message.length()];
+        for (int i = 0; i < message.length(); i++) {
+            encrypted[i] = (byte) (message.charAt(i) ^ key[i % key.length]);
+        }
         return Base64.getEncoder().encodeToString(encrypted);
     }
 
-    public String decryptAES(String encryptedMessage, SecretKey secretKey) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
-        byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedMessage));
+    public String aesDecrypt(String encryptedMessage, byte[] key) {
+        byte[] decoded = Base64.getDecoder().decode(encryptedMessage);
+        char[] decrypted = new char[decoded.length];
+        for (int i = 0; i < decoded.length; i++) {
+            decrypted[i] = (char) (decoded[i] ^ key[i % key.length]);
+        }
         return new String(decrypted);
     }
 
 
-    public String encryptRSA(String message, PublicKey publicKey) throws Exception {
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        byte[] encrypted = cipher.doFinal(message.getBytes());
-        return Base64.getEncoder().encodeToString(encrypted);
+    public String rsaEncrypt(String message, BigInteger publicKey, BigInteger modulus) {
+        BigInteger messageInt = new BigInteger(message.getBytes());
+        if (messageInt.compareTo(modulus) >= 0) {
+            throw new IllegalArgumentException("Message is too large for the current modulus.");
+        }
+        BigInteger encrypted = messageInt.modPow(publicKey, modulus);
+        return encrypted.toString();
     }
 
-    public String decryptRSA(String encryptedMessage, PrivateKey privateKey) throws Exception {
-        encryptedMessage = encryptedMessage.replaceAll("\\s", "");
-        byte[] decodedBytes = Base64.getDecoder().decode(encryptedMessage);
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        byte[] decrypted = cipher.doFinal(decodedBytes);
-
-        return new String(decrypted);
+    public String rsaDecrypt(String message, BigInteger privateKey, BigInteger modulus) {
+        BigInteger encryptedInt = new BigInteger(message);
+        BigInteger decryptedInt = encryptedInt.modPow(privateKey, modulus);
+        return new String(decryptedInt.toByteArray());
     }
 }

@@ -130,7 +130,6 @@ public class VigenereCipher {
             }
             double averageIc = icValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
             ics.add(new AbstractMap.SimpleEntry<>(keyLength, averageIc));
-            System.out.printf("Длина ключа: %d, Средний IC: %.4f%n", keyLength, averageIc);
         }
 
         return ics.stream()
@@ -142,12 +141,10 @@ public class VigenereCipher {
     public static int estimateKeyLengthCombined(String ciphertext, int maxKeyLength) {
         int keyLengthKasiski = kasiskiExamination(ciphertext, 4, maxKeyLength);
         if (keyLengthKasiski != 0 && 1 < keyLengthKasiski && keyLengthKasiski <= maxKeyLength) {
-            System.out.println("Key length determined by Kasiski method: " + keyLengthKasiski);
             return keyLengthKasiski;
         }
 
         int keyLengthIc = estimateKeyLengthIc(ciphertext, maxKeyLength);
-        System.out.println("Key length determined by IC method: " + keyLengthIc);
         return keyLengthIc;
     }
 

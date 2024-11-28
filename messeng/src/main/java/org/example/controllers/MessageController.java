@@ -10,6 +10,7 @@ import org.example.services.KeyService;
 import org.springframework.web.bind.annotation.*;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -24,12 +25,10 @@ public class MessageController {
     private final EncryptionService encryptionService;
     private final KeyService keyService;
     private final SendClient sendClien;
-    private SecretKey aesKey;
-    private KeyPair rsaKeyPair;
+    private byte[] aesKey;
     private String lastMessange;
     private String lastMethodForLastMessange;
-    private PublicKey lastKey;
-    private String caesarKey;
+    private int caesarKey = 0;
 
     @PostMapping("/accept_messange")
     public void acceptMessange(@RequestBody EncryptedMessage encryptedMessage){
@@ -41,11 +40,20 @@ public class MessageController {
     public String encrypt(@RequestBody EncryptedMessage message) throws Exception {
         switch (message.getMethod().toLowerCase()) {
             case "caesar":
-                return encryptionService.encryptCaesar(message.getMessage(), Integer.parseInt(this.caesarKey));
+                if (this.caesarKey == 0){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.encryptCaesar(message.getMessage(), this.caesarKey);
             case "aes":
-                return encryptionService.encryptAES(message.getMessage(), this.aesKey);
+                if (this.aesKey.length == 0){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.aesEncrypt(message.getMessage(), this.aesKey);
             case "rsa":
-                return encryptionService.encryptRSA(message.getMessage(), this.lastKey);
+                if (this.publicKey.equals(0)){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.rsaEncrypt(message.getMessage(), this.publicKey, this.modulus);
             default:
                 throw new IllegalArgumentException("Invalid method");
         }
@@ -55,11 +63,20 @@ public class MessageController {
     public String decrypt(@RequestBody EncryptedMessage message) throws Exception {
         switch (message.getMethod().toLowerCase()) {
             case "caesar":
-                return encryptionService.decryptCaesar(message.getMessage(), Integer.parseInt(this.caesarKey));
+                if (this.caesarKey == 0){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.decryptCaesar(message.getMessage(), this.caesarKey);
             case "aes":
-                return encryptionService.decryptAES(message.getMessage(), this.aesKey);
+                if (this.aesKey.length == 0){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.aesDecrypt(message.getMessage(), this.aesKey);
             case "rsa":
-                return encryptionService.decryptRSA(message.getMessage(), rsaKeyPair.getPrivate());
+                if (this.publicKey.equals(0)){
+                    return "У вас нет ключа";
+                }
+                return encryptionService.rsaDecrypt(message.getMessage(), this.privateKey, this.modulus);
             default:
                 throw new IllegalArgumentException("Invalid method");
         }
@@ -108,12 +125,12 @@ public class MessageController {
                 aesKey = keyService.generateAESKey();
                 return "AES ключ сгенерирован";
             case "rsa":
-                rsaKeyPair = keyService.generateRSAKeyPair();
+                generateRSAKeys();
                 return "RSA ключ сгенерирован";
             case "caesar":
                 Random random = new Random();
                 int randomNumber = random.nextInt(100);
-                caesarKey = Integer.toString(randomNumber);
+                caesarKey = randomNumber;
                 return "caesar ключ сгенерирован";
             default:
                 throw new IllegalArgumentException("Invalid method");
@@ -125,13 +142,12 @@ public class MessageController {
         SendKey encryptedMessage = new SendKey();
         encryptedMessage.setMethod(method);
         if ("rsa".equalsIgnoreCase(method)) {
-            byte[] keyBytes = rsaKeyPair.getPublic().getEncoded();
-            encryptedMessage.setKey(Base64.getEncoder().encodeToString(keyBytes));
+            encryptedMessage.setA(publicKey);
+            encryptedMessage.setM(modulus);
         } else if ("aes".equalsIgnoreCase(method)){
-            byte[] keyBytes = aesKey.getEncoded();
-            encryptedMessage.setKey(Base64.getEncoder().encodeToString(keyBytes));
+            encryptedMessage.setKey(this.aesKey);
         } else if ("caesar".equalsIgnoreCase(method)){
-            encryptedMessage.setKey(this.caesarKey);
+            encryptedMessage.setC(this.caesarKey);
         }
         sendClien.getPublicKey(encryptedMessage);
     }
@@ -139,16 +155,33 @@ public class MessageController {
     @PostMapping("/get_public_key")
     public void getPublicKey(@RequestBody SendKey encryptedMessage) throws Exception {
         if ("rsa".equalsIgnoreCase(encryptedMessage.getMethod())) {
-            byte[] keyBytes = Base64.getDecoder().decode(encryptedMessage.getKey());
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            this.lastKey = keyFactory.generatePublic(spec);
+            this.publicKey = encryptedMessage.getA();
+            this.modulus = encryptedMessage.getM();
         } else if ("aes".equalsIgnoreCase(encryptedMessage.getMethod())){
-            byte[] keyBytes = Base64.getDecoder().decode(encryptedMessage.getKey());
-            this.aesKey = new SecretKeySpec(keyBytes, "AES");
-            encryptedMessage.setKey(Base64.getEncoder().encodeToString(keyBytes));
+            this.aesKey = encryptedMessage.getKey();
         } else if ("caesar".equalsIgnoreCase(encryptedMessage.getMethod())){
-            this.caesarKey = encryptedMessage.getKey();
+            this.caesarKey = encryptedMessage.getC();
         }
     }
+
+    private BigInteger publicKey;
+    private BigInteger privateKey;
+    private BigInteger modulus;
+
+    public void generateRSAKeys() {
+        SecureRandom random = new SecureRandom();
+        int bitLength = 1024;
+        BigInteger p = BigInteger.probablePrime(bitLength / 2, random);
+        BigInteger q = BigInteger.probablePrime(bitLength / 2, random);
+        modulus = p.multiply(q);
+        BigInteger phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE));
+        publicKey = BigInteger.valueOf(65537);
+        if (!phi.gcd(publicKey).equals(BigInteger.ONE)) {
+            publicKey = BigInteger.probablePrime(bitLength / 2, random);
+        }
+
+        // Рассчитываем d (закрытый ключ)
+        privateKey = publicKey.modInverse(phi);
+    }
+
 }
