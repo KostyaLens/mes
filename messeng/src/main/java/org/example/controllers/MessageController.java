@@ -180,7 +180,6 @@ public class MessageController {
             publicKey = BigInteger.probablePrime(bitLength / 2, random);
         }
 
-        // Рассчитываем d (закрытый ключ)
         privateKey = publicKey.modInverse(phi);
     }
 
