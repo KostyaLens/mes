@@ -175,11 +175,9 @@ public class MessageController {
         BigInteger q = BigInteger.probablePrime(bitLength / 2, random);
         modulus = p.multiply(q);
         BigInteger phi = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE));
-
-        publicKey = BigInteger.valueOf(65537);
-        if (!phi.gcd(publicKey).equals(BigInteger.ONE)) {
-            publicKey = BigInteger.probablePrime(bitLength / 2, random);
-        }
+        do {
+            publicKey = new BigInteger(bitLength / 2, random); // Случайное число
+        } while (!phi.gcd(publicKey).equals(BigInteger.ONE) || publicKey.compareTo(BigInteger.ONE) <= 0 || publicKey.compareTo(phi) >= 0);
         privateKey = publicKey.modInverse(phi);
     }
 
